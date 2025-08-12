@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.ico">
+  <title>アラーム＆為替電卓＆板カット計算</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: sans-serif; background: #f7f7f7; }
+    .panel { background: #fff; margin: 20px auto; padding: 20px; border-radius: 8px; max-width: 420px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);}
+    .panel-title { font-size: 1.2em; font-weight: bold; margin-bottom: 10px;}
+    .mode-btns { text-align: center; margin-top: 20px; }
+    .mode-btns button { margin: 0 10px; padding: 8px 24px; border-radius: 6px; border: 1px solid #aaa; background: #e0e0e0; font-size: 1em;}
+    .mode-btns .active { background: #2196F3; color: #fff; border-color: #2196F3;}
+    .zone-btn { margin: 2px 4px; padding: 6px 16px; border-radius: 5px; border: 1px solid #aaa; background: #fafafa;}
+    .display { font-size: 1.5em; background: #222; color: #fff; text-align: right; padding: 8px 12px; border-radius: 4px; margin: 12px 0;}
+    .error-msg { color: #d32f2f; min-height: 1.2em;}
+    .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0;}
+    .keypad button { padding: 12px 0; font-size: 1.1em; border-radius: 4px; border: 1px solid #bbb; background: #f5f5f5;}
+    .keypad .func, .keypad .ok { background: #2196F3; color: #fff;}
+    .keypad .hidden { visibility: hidden; }
+    .fx-row { display: flex; gap: 6px; margin-top: 10px;}
+    .fx-row input { flex: 1; padding: 6px; font-size: 1em; border-radius: 4px; border: 1px solid #bbb;}
+    .fx-row button { padding: 6px 10px; border-radius: 4px; border: 1px solid #bbb; background: #e0e0e0;}
+    label { margin-right: 8px; }
+    .svg-container { text-align:center; margin:16px 0;}
+  </style>
+</head>
+<body>
+  <div class="mode-btns">
+    <button id="alarmModeBtn" class="active">アラーム設定</button>
+    <button id="calcModeBtn">計算機</button>
+    <button id="cutModeBtn">板カット計算</button>
+  </div>
+
+  <!-- アラーム設定パネル -->
+  <div id="alarmPanel" class="panel">
+    <div class="panel-title">「夜中」「朝」「昼」「夜」を選択し、時刻を入力してください</div>
+    <div>
+      <button class="zone-btn" id="morningBtn">朝</button>
+      <button class="zone-btn" id="noonBtn">昼</button>
+      <button class="zone-btn" id="nightBtn">夜</button>
+      <button class="zone-btn" id="midnightBtn">夜中</button>
+    </div>
+    <div class="display" id="alarmDisplay">00:00 AM</div>
+    <div class="error-msg" id="alarmError">&nbsp;</div>
+    <div class="keypad" id="alarmKeypad">
+      <button class="num">1</button>
+      <button class="num">2</button>
+      <button class="num">3</button>
+      <button class="func" id="alarmClear">C</button>
+      <button class="num">4</button>
+      <button class="num">5</button>
+      <button class="num">6</button>
+      <button class="ok" id="alarmOK">OK</button>
+      <button class="num">7</button>
+      <button class="num">8</button>
+      <button class="num">9</button>
+      <button class="hidden"></button>
+      <button class="num">0</button>
+      <button class="hidden"></button>
+      <button class="hidden"></button>
+      <button class="hidden"></button>
+    </div>
+    <div id="alarmTimeDisplay" style="margin-top:10px;"></div>
+    <button id="clearAlarmButton" style="display:none;">解除</button>
+    <audio id="alarmSound" preload="auto" src="abc-alphabet-song-274033.mp3"></audio>
+  </div>
+
+  <!-- 計算機パネル -->
+  <div id="calcPanel" class="panel hidden">
+    <div class="panel-title">計算機・為替換算</div>
+    <div class="display" id="calcDisplay">0</div>
+    <div class="error-msg" id="calcError">&nbsp;</div>
+    <div class="keypad" id="calcKeypad">
+      <button class="num">7</button>
+      <button class="num">8</button>
+      <button class="num">9</button>
+      <button class="op" data-op="/">÷</button>
+      <button class="num">4</button>
+      <button class="num">5</button>
+      <button class="num">6</button>
+      <button class="op" data-op="*">×</button>
+      <button class="num">1</button>
+      <button class="num">2</button>
+      <button class="num">3</button>
+      <button class="op" data-op="-">−</button>
+      <button class="num">0</button>
+      <button class="func" id="calcClear">C</button>
+      <button class="func" id="calcEqual">=</button>
+      <button class="op" data-op="+">＋</button>
+    </div>
+    <div class="fx-row">
+      <input type="number" id="rateInput" placeholder="為替レート" step="0.01" min="0">
+      <button class="func" id="fetchRateBtn">最新レート取得</button>
+      <button class="func" id="toYenBtn">USD→円</button>
+      <button class="func" id="toUsdBtn">円→USD</button>
+    </div>
+  </div>
+
+  <!-- 板カット計算ツール -->
+  <div id="cutPanel" class="panel hidden">
+    <div class="panel-title">板カット計算ツール</div>
+    <!-- SVG説明図 -->
+    <div class="svg-container">
+      <svg width="320" height="220" viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+        <rect x="60" y="40" width="200" height="120" fill="#f9f9f9" stroke="#222" stroke-width="2"/>
+        <text x="160" y="30" text-anchor="middle" font-size="16" fill="#1976d2">A（上辺）</text>
+        <text x="270" y="105" text-anchor="middle" font-size="16" fill="#388e3c" transform="rotate(90,270,105)">B（右辺）</text>
+        <text x="160" y="180" text-anchor="middle" font-size="16" fill="#d32f2f">C（下辺）</text>
+        <text x="50" y="105" text-anchor="middle" font-size="16" fill="#fbc02d" transform="rotate(-90,50,105)">D（左辺）</text>
+        <circle cx="60" cy="40" r="3" fill="#1976d2"/>
+        <circle cx="260" cy="40" r="3" fill="#388e3c"/>
+        <circle cx="260" cy="160" r="3" fill="#d32f2f"/>
+        <circle cx="60" cy="160" r="3" fill="#fbc02d"/>
+        <text x="55" y="35" font-size="12" fill="#555">a</text>
+        <text x="265" y="35" font-size="12" fill="#555">b</text>
+        <text x="265" y="175" font-size="12" fill="#555">c</text>
+        <text x="55" y="175" font-size="12" fill="#555">d</text>
+      </svg>
+      <div style="font-size:13px; color:#555;">A:上辺　B:右辺　C:下辺　D:左辺<br>各頂点はa,b,c,dで示しています</div>
+    </div>
+    <div style="margin-bottom:8px;">
+      <label>上辺A (mm): <input type="number" id="cutA" value="920"></label>
+      <label>右辺B (mm): <input type="number" id="cutB" value="1825"></label>
+      <label>下辺C (mm): <input type="number" id="cutC" value="920"></label>
+      <label>左辺D (mm): <input type="number" id="cutD" value="1823"></label>
+      <button id="calcCutBtn" class="func">計算</button>
+    </div>
+    <div id="cutResult" style="margin-top:10px; color:#333; font-weight:bold;"></div>
+  </div>
+
+  <!-- アラーム用スクリプト -->
+  <script src="alarm.js"></script>
+  <!-- 計算機用スクリプト -->
+  <script src="calc.js"></script>
+  <!-- パネル切り替え＆板カット計算スクリプト -->
+  <script>
+    // パネル切り替え
+    document.getElementById('alarmModeBtn').onclick = function() {
+      document.getElementById('alarmPanel').classList.remove('hidden');
+      document.getElementById('calcPanel').classList.add('hidden');
+      document.getElementById('cutPanel').classList.add('hidden');
+      document.getElementById('alarmModeBtn').classList.add('active');
+      document.getElementById('calcModeBtn').classList.remove('active');
+      document.getElementById('cutModeBtn').classList.remove('active');
+    };
+    document.getElementById('calcModeBtn').onclick = function() {
+      document.getElementById('calcPanel').classList.remove('hidden');
+      document.getElementById('alarmPanel').classList.add('hidden');
+      document.getElementById('cutPanel').classList.add('hidden');
+      document.getElementById('calcModeBtn').classList.add('active');
+      document.getElementById('alarmModeBtn').classList.remove('active');
+      document.getElementById('cutModeBtn').classList.remove('active');
+    };
+    document.getElementById('cutModeBtn').onclick = function() {
+      document.getElementById('cutPanel').classList.remove('hidden');
+      document.getElementById('alarmPanel').classList.add('hidden');
+      document.getElementById('calcPanel').classList.add('hidden');
+      document.getElementById('cutModeBtn').classList.add('active');
+      document.getElementById('alarmModeBtn').classList.remove('active');
+      document.getElementById('calcModeBtn').classList.remove('active');
+    };
+
+    // 板カット計算ツール
+    document.getElementById('calcCutBtn').onclick = function() {
+      const A = parseFloat(document.getElementById('cutA').value);
+      const B = parseFloat(document.getElementById('cutB').value);
+      const C = parseFloat(document.getElementById('cutC').value);
+      const D = parseFloat(document.getElementById('cutD').value);
+
+      if (isNaN(A) || isNaN(B) || isNaN(C) || isNaN(D) || A<=0 || B<=0 || C<=0 || D<=0) {
+        document.getElementById('cutResult').innerText = "全ての辺の長さを正しく入力してください。";
+        return;
+      }
+
+      const width = Math.min(A, C);
+      const height = Math.min(B, D);
+
+      const cutA = A - width;
+      const cutB = B - height;
+      const cutC = C - width;
+      const cutD = D - height;
+
+      let msg = `【切るべき長さ】\n`;
+      msg += `上辺Aから ${cutA} mm\n`;
+      msg += `右辺Bから ${cutB} mm\n`;
+      msg += `下辺Cから ${cutC} mm\n`;
+      msg += `左辺Dから ${cutD} mm\n\n`;
+      msg += `※最も短い辺に合わせて長方形に近づける計算です。\n`;
+      msg += `ノコギリの厚みも考慮してください。`;
+
+      document.getElementById('cutResult').innerText = msg;
+    };
+  </script>
+</body>
+</html>

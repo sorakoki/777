@@ -1,0 +1,22 @@
+"icons": [
+  {
+    "src": "./img/icon-192x192.png",
+    "sizes": "192x192",
+    "type": "image/png"
+  },
+  {
+    "src": "./img/icon-180x180.png",
+    "sizes": "180x180",
+    "type": "image/png"
+  },
+  {
+    "src": "./img/time.jpg",
+    "sizes": "192x192",
+    "type": "image/jpg"
+  },
+  {
+    "src": "favicon.ico",
+    "sizes": "48x48 72x72 96x96 144x144 192x192",
+    "type": "image/x-icon"
+  }
+]
